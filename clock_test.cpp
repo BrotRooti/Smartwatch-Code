@@ -4,6 +4,8 @@
 
 #include <esp32-hal-gpio.h>
 #include <TFT_eSPI.h>
+#include <WiFi.h>
+#include "time.h"
 
 #include <nixies/0.h>
 #include <nixies/1.h>
@@ -35,10 +37,35 @@ uint8_t sec = 0;
 uint8_t mint = 0;
 uint8_t hr = 0;
 
+
+// WLAN-Zugangsdaten
+const char* ssid       = "Phillip";
+const char* password   = "regel 23";
+
+// NTP-Server und Zeitzone
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 3600;      // Offset für MEZ (UTC+1)
+//const int   daylightOffset_sec = 3600; // Sommerzeit (+1h)
+
+const int   daylightOffset_sec = 00;
+
 void setup() {
     // put your setup code here, to run once:
     pinMode(TFT_BL, OUTPUT);
     digitalWrite(TFT_BL, HIGH);
+
+    Serial.begin(9600);
+
+    // Mit WLAN verbinden
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("\nVerbunden mit WLAN");
+
+    // NTP konfigurieren
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
     tft.init();
     tft.setSwapBytes(true);
@@ -46,12 +73,14 @@ void setup() {
 
     tft.fillScreen(TFT_BLACK);
 
-    line1.createSprite(240, 60);
-    line2.createSprite(240, 60);
-    line3.createSprite(240, 60);
+    line1.createSprite(240, 80);
+    line2.createSprite(240, 80);
+    line3.createSprite(240, 80);
+
+    tft.pushImage(0, 0, 48, 74, img_0);
 }
 
-void picture_setup(char pic_name, int position_x, int position_y, TFT_eSprite sprite) {
+void picture_setup(const char pic_name, const int position_x, const int position_y, TFT_eSprite sprite) {
     switch (pic_name) {
         case '0': sprite.pushImage(position_x, position_y, 48, 74, img_0); break;
         case '1': sprite.pushImage(position_x, position_y, 48, 74, img_1); break;
@@ -83,18 +112,12 @@ void time_decoder() {
 }
 
 void update_time() {
-    sec++;
-    if (sec >= 60) {
-        sec = 0;
-        mint++;
-        if (mint >= 60) {
-            mint = 0;
-            hr++;
-            if (hr >= 24) {
-                hr = 0;
-            }
-        }
-    }
+    struct tm timeinfo;
+    getLocalTime(&timeinfo);
+
+    sec = timeinfo.tm_sec;
+    mint = timeinfo.tm_min;
+    hr = timeinfo.tm_hour;
 
     time_decoder();
 
@@ -128,9 +151,11 @@ void update_display() {
 }
 
 void loop() {
-    update_time();
-    update_display();
+    //update_time();
+    //update_display();
 
+    //tft.pushImage(0, 0, 48, 74, img_0);
+    line1.pushSprite(10, 10);
 
-    delay(100);
+    delay(1000);
 }
